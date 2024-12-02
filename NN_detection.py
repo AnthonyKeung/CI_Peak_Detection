@@ -17,8 +17,14 @@ def peak_finding_training(windows: list, window_size: int,  peak_indices: list, 
     for peak in peak_indices:
         for j, _ in enumerate(windows):
             if j*window_size <= peak <= (j+1)*window_size:
-                y[j] = 1
+                y[j] += 1
                 break
+    
+    # Convert y values to binary with length 2
+    y = tf.keras.utils.to_categorical(y, num_classes=4)
+
+    print(f"Number of peaks: {len(peak_indices)}")
+    print(f"predicted peaks: {sum(y)}")
 
     # Split the data into training and testing sets
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -26,7 +32,7 @@ def peak_finding_training(windows: list, window_size: int,  peak_indices: list, 
     # Define the neural network model
     model = Sequential([
         LSTM(50, input_shape=(window_size, 1)),
-        Dense(1, activation='sigmoid')
+        Dense(4, activation='sigmoid')
     ])
 
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
@@ -39,6 +45,7 @@ def peak_finding_training(windows: list, window_size: int,  peak_indices: list, 
 
     # Save the trained model
     model.save(model_save_path)
+
 def peak_finding_training_v2(windows: list, window_size: int,  peak_indices: list, model_save_path: str):
 
      # Creating all the data for the model
@@ -95,8 +102,29 @@ def index_generator(windows, window_size, model_path,save_path):
     index = []
 
     for i, prediction in enumerate(predictions):
-        if prediction > 0.5:
+
+        max_index = np.argmax(prediction)
+
+        if max_index == 0: # no peak
+            pass
+        elif max_index == 1 : # one peak
             index.append(i*window_size)
+            continue
+        elif max_index == 2: # two peaks
+            print(f"Two peaks: {prediction}")
+            index.append(i*window_size)
+            index.append(i*window_size + window_size//2)
+            continue
+
+        elif max_index == 3: # three peaks
+            print(f"Three peaks: {prediction}")
+            index.append(i*window_size)
+            index.append(i*window_size + window_size//3)
+            index.append(i*window_size - window_size//3)
+            continue
+        else:
+            print(f"Didn't fit into any Prediction: {prediction}")
+            continue
 
     spio.savemat(save_path, {'Index': index})
     return index
@@ -210,8 +238,15 @@ if __name__ == '__main__':
     Index = sorted(Index)
     peak_type  = mat['Class']
 
-    window_size = 20
+    window_size = 50
 
     windows = window_generator(raw_data=d, window_size = window_size)
-    peak_finding_training_v2(windows, window_size, peak_indices=Index, model_save_path='peak_finding_model_v2.h5')
+    # peak_finding_training(windows, window_size, peak_indices=Index, model_save_path='peak_finding_model.h5')
+    predicted_indexes = index_generator(windows, window_size, 'peak_finding_model.h5', 'predicted.mat')
+
+    print(f"Predicted indexes: {predicted_indexes[:10]}")
+    print(len(predicted_indexes))
+    print(f"Actual indexes: {Index[:10]}")
+    print(len(Index))
+
 
