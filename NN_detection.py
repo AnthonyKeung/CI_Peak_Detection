@@ -128,18 +128,21 @@ def index_generator_v2(windows, window_size, model_path,save_path):
     spio.savemat(save_path, {'Index': index})
     return index
 
-def class_generator(filtered_data, peak_indices, window_size, model_path, save_path):
+def class_generator(raw_data, filtered_data, peak_indices, window_size, model_path, save_path):
 
     # Creating all the data for the model
     windows = []
+    raw_windows = []
     for peak_index in peak_indices:
-        windows.append(filtered_data[peak_index - 10 :peak_index + 40])
+        windows.append(filtered_data[peak_index - 20 :peak_index + 30])
+        raw_windows.append(raw_data[peak_index - 20 :peak_index + 30])
     
 
     for i in range(5):
         plt.subplot(5, 1, i+1)
         random_index = np.random.randint(0, len(windows))
         plt.plot(windows[random_index])
+        plt.plot(raw_windows[random_index])
         plt.title(f'Window {random_index}')
     plt.tight_layout()
     plt.show()
@@ -156,8 +159,12 @@ def class_generator(filtered_data, peak_indices, window_size, model_path, save_p
 
     # Predict peaks in the test windows
     predictions = model.predict(X_windows)
+    for i in range(10):
+        i = np.random.randint(0, len(predictions))
+        print(f"Prediction {i}: {max(predictions[i])}")
     predictions = np.argmax(predictions, axis=1).tolist()
     predictions = [prediction + 1 for prediction in predictions]
+
     print(f"For {save_path} the number of predictions are {len(predictions)}")
     # Load existing .mat file if it exists
     try:
@@ -165,7 +172,7 @@ def class_generator(filtered_data, peak_indices, window_size, model_path, save_p
         existing_data['Class'] = predictions
         spio.savemat(save_path, existing_data)
     except FileNotFoundError:
-        pass
+        print(f"file not found ")
     return predictions
 
 def window_generator(raw_data, window_size):
@@ -247,7 +254,7 @@ def generate_mat_file():
 
 
         #peak_type_training(raw_data, window_size, peak_types, peak_indices, 'peak_type_model.h5')
-        class_generator(filtered_data, peak_indices, window_size,  peak_types_model_path, f'predicted/{params[0]}.mat')
+        class_generator(raw_data, filtered_data, peak_indices, window_size,  peak_types_model_path, f'predicted/{params[0]}.mat')
 
 def find_thresholds(raw_data):
     number_actual_peaks = 3743
@@ -288,23 +295,23 @@ def view_raw_against_filtered(raw_data, low_threshold, high_threshold):
 
 if __name__ == '__main__':
 
-    ### Class Type training #############################################
-    # Load the data from the .mat file
-    mat = spio.loadmat('D1.mat', squeeze_me=True)
-    raw_data = mat['d']
-    window_size = 50
+    # ### Class Type training #############################################
+    # # Load the data from the .mat file
+    # mat = spio.loadmat('D1.mat', squeeze_me=True)
+    # raw_data = mat['d']
+    # window_size = 50
     
-    peak_types = mat['Class']
+    # peak_types = mat['Class']
 
-    low_threshold = 50/12500
-    high_threshold = 3700/12500
-    b, a = butter(N=4, Wn=[low_threshold, high_threshold], btype='band')
-    filtered_data = filtfilt(b, a, raw_data)
-    peak_indices = mat['Index']
+    # low_threshold = 50/12500
+    # high_threshold = 3700/12500
+    # b, a = butter(N=4, Wn=[low_threshold, high_threshold], btype='band')
+    # filtered_data = filtfilt(b, a, raw_data)
+    # peak_indices = mat['Index']
 
-    class_training(raw_data = raw_data, filtered_data=filtered_data, window_size = window_size, 
-                   peak_types = peak_types, peak_indices=peak_indices, 
-                   model_save_path= 'filtered_peak_type_model.h5')
+    # class_training(raw_data = raw_data, filtered_data=filtered_data, window_size = window_size, 
+    #                peak_types = peak_types, peak_indices=peak_indices, 
+    #                model_save_path= 'filtered_peak_type_model.h5')
     
 
     generate_mat_file()
