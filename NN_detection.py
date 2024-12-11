@@ -134,18 +134,8 @@ def class_generator(raw_data, filtered_data, peak_indices, window_size, model_pa
     windows = []
     raw_windows = []
     for peak_index in peak_indices:
-        windows.append(filtered_data[peak_index - 20 :peak_index + 30])
-        raw_windows.append(raw_data[peak_index - 20 :peak_index + 30])
-    
-
-    for i in range(5):
-        plt.subplot(5, 1, i+1)
-        random_index = np.random.randint(0, len(windows))
-        plt.plot(windows[random_index])
-        plt.plot(raw_windows[random_index])
-        plt.title(f'Window {random_index}')
-    plt.tight_layout()
-    plt.show()
+        windows.append(filtered_data[peak_index - 25 :peak_index + 25])
+        raw_windows.append(raw_data[peak_index - 25 :peak_index + 25])
 
     
     # Ensure all windows are the same size by padding with zeros if necessary
@@ -166,6 +156,15 @@ def class_generator(raw_data, filtered_data, peak_indices, window_size, model_pa
     predictions = [prediction + 1 for prediction in predictions]
 
     print(f"For {save_path} the number of predictions are {len(predictions)}")
+
+    for i in range(5):
+        plt.subplot(5, 1, i+1)
+        random_index = np.random.randint(0, len(windows))
+        plt.plot(windows[random_index])
+        plt.plot(raw_windows[random_index])
+        plt.title(f'Window {random_index} Class {predictions[random_index]}')
+    plt.tight_layout()
+    plt.show()
     # Load existing .mat file if it exists
     try:
         existing_data = spio.loadmat(save_path, squeeze_me=True)
@@ -181,14 +180,32 @@ def window_generator(raw_data, window_size):
 
 def class_training(raw_data, filtered_data, window_size, peak_types, peak_indices, model_save_path):
 
-    # Creating all the data for the model
+    # Making sure the peaks are at the centre of the windows
     filtered_windows = []
-    for peak_index in peak_indices:
-        filtered_windows.append(filtered_data[peak_index  :peak_index + window_size])
+    for i, peak_index in enumerate(peak_indices):
+        if peak_types[i] == 1:
+            filtered_windows.append(filtered_data[peak_index - 18 :peak_index + 32])
+        elif peak_types[i] == 2:
+            filtered_windows.append(filtered_data[peak_index - 15 :peak_index + 35])
+        elif peak_types[i] == 3:
+            filtered_windows.append(filtered_data[peak_index - 16 :peak_index + 34])
+        elif peak_types[i] == 4:
+            filtered_windows.append(filtered_data[peak_index - 12 :peak_index + 38])
+        elif peak_types[i] == 5:
+            filtered_windows.append(filtered_data[peak_index - 11 :peak_index + 39])
     
     raw_windows = []
     for peak_index in peak_indices:
-        raw_windows.append(raw_data[peak_index:peak_index + window_size])
+        if peak_types[i] == 1:
+            raw_windows.append(raw_data[peak_index - 18 :peak_index + 32])
+        elif peak_types[i] == 2:
+            raw_windows.append(raw_data[peak_index - 15 :peak_index + 35])
+        elif peak_types[i] == 3:
+            raw_windows.append(raw_data[peak_index - 25 :peak_index + 25])
+        elif peak_types[i] == 4:
+            raw_windows.append(raw_data[peak_index - 12 :peak_index + 38])
+        elif peak_types[i] == 5:
+            raw_windows.append(raw_data[peak_index - 11 :peak_index + 39])
 
 
     for i in range(5):
@@ -196,7 +213,7 @@ def class_training(raw_data, filtered_data, window_size, peak_types, peak_indice
         random_index = np.random.randint(0, len(filtered_windows))
         plt.plot(filtered_windows[random_index], 'g')
         plt.plot(raw_windows[random_index], 'r')
-        plt.title(f'Window {random_index}')
+        plt.title(f'Window {random_index} Class {peak_types[random_index]}')
     plt.tight_layout()
     plt.show()
     
@@ -214,7 +231,7 @@ def class_training(raw_data, filtered_data, window_size, peak_types, peak_indice
 
     # Define the neural network model
     model = Sequential([
-        LSTM(20, input_shape=(window_size, 1)),
+        LSTM(60, input_shape=(window_size, 1)),
         Dense(5, activation='softmax')
     ])
 
@@ -229,15 +246,14 @@ def class_training(raw_data, filtered_data, window_size, peak_types, peak_indice
     # Save the trained model
     model.save(model_save_path)
 
-def generate_mat_file():
-    dataset   = [['D1',50, 3700, 0.9], 
-                 ['D2', 70, 2300, 0.9], 
-                 ['D3', 150,1250, 0.9], 
-                 ['D4',150,1200, 0.9], 
-                 ['D5', 230, 1050, 1.4], 
-                 ['D6', 210, 1050, 1.9]]
+def generate_mat_file(model_path):
+    dataset   = [['D1', 50, 3700, 0.9, 0], 
+                 ['D2', 70, 2300, 0.9, 0], 
+                 ['D3', 150, 1250, 0.9, 0], 
+                 ['D4', 150, 1200, 0.9, 0], 
+                 ['D5', 230, 1050, 1.4, 0], 
+                 ['D6', 210, 1050, 1.9, 0]]
     
-    peak_types_model_path = 'filtered_peak_type_model.h5'
     
     for params in dataset:
         mat = spio.loadmat(f'{params[0]}.mat', squeeze_me=True)
@@ -248,27 +264,38 @@ def generate_mat_file():
         high_threshold = params[2]/12500
         b, a = butter(N=4, Wn=[low_threshold, high_threshold], btype='band')
         filtered_data = filtfilt(b, a, raw_data)
-        peak_indices, _ = find_peaks(x=filtered_data, height= params[3], distance=10)
+        peak_indices, _ = find_peaks(x=filtered_data, height= params[3], distance=10, threshold=params[4])
+
+        plt.figure(figsize=(10, 4))
+        plt.plot(raw_data, label='Raw Data')
+        plt.plot(filtered_data, label='Filtered Data')
+        plt.plot(peak_indices, filtered_data[peak_indices], 'go', label='Peaks')
+        plt.title(f'{params[0]} Data with Peaks')
+        plt.xlabel('Time')
+        plt.legend()
+        plt.show()
+
         print(f"For {params[0]}Number of peaks: {len(peak_indices)}")
         spio.savemat(f'predicted/{params[0]}.mat', {'Index': peak_indices})
 
 
         #peak_type_training(raw_data, window_size, peak_types, peak_indices, 'peak_type_model.h5')
-        class_generator(raw_data, filtered_data, peak_indices, window_size,  peak_types_model_path, f'predicted/{params[0]}.mat')
+        class_generator(raw_data, filtered_data, peak_indices, window_size,  model_path, f'predicted/{params[0]}.mat')
 
 def find_thresholds(raw_data):
     number_actual_peaks = 3743
-    threshold = 50
+    leeway = 50
 
-    for low in tqdm(range(200, 300, 10), desc="Low Frequency"):
-        for high in range(1050, 2000, 50):
-            low_threshold = low/12500
-            high_threshold = high/12500
-            b, a = butter(N=4, Wn=[low_threshold, high_threshold], btype='band')
-            filtered_data = filtfilt(b, a, raw_data)
-            peak_indices, _ = find_peaks(x=filtered_data, height= 1.9, distance=10)
-            if number_actual_peaks-threshold<= len(peak_indices) <= number_actual_peaks + threshold:
-                print(f"low: {low} high: {high} number of peaks: {len(peak_indices)}")
+    for low in tqdm(range(200, 200, 10), desc="Low Frequency"):
+        for high in range(1000, 2000, 50):
+            for threshold in range(0, 5, 1):
+                low_threshold = low/12500
+                high_threshold = high/12500
+                b, a = butter(N=4, Wn=[low_threshold, high_threshold], btype='band')
+                filtered_data = filtfilt(b, a, raw_data)
+                peak_indices, _ = find_peaks(x=filtered_data, height= 0.9, distance=10, threshold=threshold/100)
+                if number_actual_peaks-leeway<= len(peak_indices) <= number_actual_peaks +leeway:
+                    print(f"low: {low} high: {high} number of peaks: {len(peak_indices)} threshold: {threshold}")
 
 def view_raw_against_filtered(raw_data, low_threshold, high_threshold):
     low_threshold = low_threshold/12500
@@ -294,14 +321,21 @@ def view_raw_against_filtered(raw_data, low_threshold, high_threshold):
 
 
 if __name__ == '__main__':
-
-    # ### Class Type training #############################################
     # # Load the data from the .mat file
     # mat = spio.loadmat('D1.mat', squeeze_me=True)
     # raw_data = mat['d']
     # window_size = 50
     
     # peak_types = mat['Class']
+
+    # # Adding Gaussian noise
+    # noise = np.random.normal(0, 0.1, raw_data.shape)
+    # raw_data = raw_data + noise
+
+    # # Adding impulse noise
+    # num_impulses = int(0.01 * len(raw_data))  # 1% of the data points
+    # impulse_indices = np.random.randint(0, len(raw_data), num_impulses)
+    # raw_data[impulse_indices] = np.random.choice([np.min(raw_data), np.max(raw_data)], num_impulses)
 
     # low_threshold = 50/12500
     # high_threshold = 3700/12500
@@ -311,11 +345,10 @@ if __name__ == '__main__':
 
     # class_training(raw_data = raw_data, filtered_data=filtered_data, window_size = window_size, 
     #                peak_types = peak_types, peak_indices=peak_indices, 
-    #                model_save_path= 'filtered_peak_type_model.h5')
-    
+    #                model_save_path= 'filtered_peak_type_model_09_12_2024.h5')
+        
+    generate_mat_file(model_path='filtered_peak_type_model_09_12_2024.h5')
 
-    generate_mat_file()
+
 
  
-
-  
