@@ -112,11 +112,24 @@ def index_generator(windows, window_size, model_path,save_path):
     return index
 
 def class_training(raw_data, filtered_data, window_size, peak_types, peak_indices, model_save_path,  show_graph=False):
+    """
+    Trains a neural network model to classify peaks in the given data.
+    Parameters:
+    raw_data (array-like): The raw input data.
+    filtered_data (array-like): The filtered input data.
+    window_size (int): The size of the window around each peak.
+    peak_types (array-like): The types of peaks to classify.
+    peak_indices (array-like): The indices of the peaks in the data.
+    model_save_path (str): The path where the trained model will be saved.
+    show_graph (bool, optional): If True, displays graphs of the windows. Default is False.
+    Returns:
+    None
+    """
 
     # Making sure the peaks are at the centre of the windows
     filtered_windows = []
     for i, peak_index in enumerate(peak_indices):
-        filtered_windows.append(filtered_data[peak_index - 20 :peak_index + 30])
+        filtered_windows.append(filtered_data[peak_index :peak_index + 50])
 
     raw_windows = []
     for peak_index in peak_indices:
@@ -180,8 +193,8 @@ def class_generator(raw_data, filtered_data, peak_indices, window_size, model_pa
     windows = []
     raw_windows = []
     for peak_index in peak_indices:
-        windows.append(filtered_data[peak_index - 25 :peak_index + 25])
-        raw_windows.append(raw_data[peak_index - 25 :peak_index + 25])
+        windows.append(filtered_data[peak_index - 20 :peak_index + 30])
+        raw_windows.append(raw_data[peak_index - 20 :peak_index + 30])
 
     
     # Ensure all windows are the same size by padding with zeros if necessary
@@ -198,7 +211,7 @@ def class_generator(raw_data, filtered_data, peak_indices, window_size, model_pa
     predictions = np.argmax(predictions, axis=1).tolist()
     predictions = [prediction + 1 for prediction in predictions]
 
-    print(f"For {save_path} the number of predictions are {len(predictions)}")
+    print(f"For {save_path} the number of predicted peaks are {len(predictions)}")
 
     if show_graph:
         for i in range(5):
@@ -276,15 +289,6 @@ if __name__ == '__main__':
     window_size = 50
     
     peak_types = mat['Class']
-
-    # Adding Gaussian noise
-    noise = np.random.normal(0, 0.1, raw_data.shape)
-    raw_data = raw_data + noise
-
-    # Adding impulse noise
-    num_impulses = int(0.01 * len(raw_data))  # 1% of the data points
-    impulse_indices = np.random.randint(0, len(raw_data), num_impulses)
-    raw_data[impulse_indices] = np.random.choice([np.min(raw_data), np.max(raw_data)], num_impulses)
 
     low_threshold = 50/12500
     high_threshold = 3700/12500
