@@ -32,4 +32,4 @@
 3. The results will be saved in the `predicted` folder
 
 ## Contact
-For any questions or feedback, please contact aywk20@bbath.ac.uk
+For any questions or feedback, please contact aywk20@bath.ac.uk
