@@ -25,6 +25,9 @@
 ## Usage
 1. Place the data you want to process in the working directory.
 2. Create a folder called "predicted"
+    ```sh
+    mkdir predicted
+    ```
 2. Run the script:
     ```sh
     python NN_detection.py
